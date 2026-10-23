@@ -1,0 +1,34 @@
+services:
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set in .env}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-food_delivery}
+      MYSQL_USER: ${MYSQL_USER:-fd_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?set in .env}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: mysql+pymysql://${MYSQL_USER:-fd_user}:${MYSQL_PASSWORD}@db:3306/${MYSQL_DATABASE:-food_delivery}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?set in .env}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+      TIMEZONE: ${TIMEZONE:-Asia/Kolkata}
+      SCHEDULER_ENABLED: "true"
+    ports:
+      - "8000:8000"
+
+volumes:
+  mysql_data:
